@@ -21,6 +21,8 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  */
 abstract class ApiFormRequest extends FormRequest
 {
+    use ValidatesTenantRelations;
+
     public function authorize(): bool
     {
         return true;

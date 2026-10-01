@@ -25,16 +25,25 @@ trait BelongsToCompany
     {
         static::addGlobalScope(new CompanyScope);
 
+        /*
+         * `static::class` rather than `$this`: this closure is bound to the
+         * model instance, not to the trait, so `$this` is undefined here. Using
+         * the class name is what lets getCompanyColumn() be called correctly.
+         */
         static::creating(function ($model): void {
             $tenancy = app(TenancyContext::class);
+
+            $column = method_exists($model, 'getCompanyColumn')
+                ? $model->getCompanyColumn()
+                : (string) config('tenancy.column', 'company_id');
 
             /*
              * A tenant-owned record may only be created while a tenant is
              * active. Anything else (seeding, console commands) must set the
              * company explicitly, which keeps the intent visible.
              */
-            if ($tenancy->has() && $model->getAttribute($this->getCompanyColumn()) === null) {
-                $model->setAttribute($this->getCompanyColumn(), $tenancy->company()?->getKey());
+            if ($tenancy->has() && $model->getAttribute($column) === null) {
+                $model->setAttribute($column, $tenancy->company()?->getKey());
             }
         });
     }

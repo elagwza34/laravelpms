@@ -55,6 +55,31 @@ final class PermissionCatalog
         'products.update' => 'Update products',
         'products.delete' => 'Delete products',
 
+        'categories.view' => 'View categories',
+        'categories.create' => 'Create categories',
+        'categories.update' => 'Update categories',
+        'categories.delete' => 'Delete categories',
+
+        'brands.view' => 'View brands',
+        'brands.create' => 'Create brands',
+        'brands.update' => 'Update brands',
+        'brands.delete' => 'Delete brands',
+
+        'attributes.view' => 'View attributes',
+        'attributes.create' => 'Create attributes',
+        'attributes.update' => 'Update attributes',
+        'attributes.delete' => 'Delete attributes',
+
+        'units.view' => 'View units',
+        'units.create' => 'Create units',
+        'units.update' => 'Update units',
+        'units.delete' => 'Delete units',
+
+        'suppliers.view' => 'View suppliers',
+        'suppliers.create' => 'Create suppliers',
+        'suppliers.update' => 'Update suppliers',
+        'suppliers.delete' => 'Delete suppliers',
+
         'inventory.view' => 'View inventory',
         'inventory.adjust' => 'Adjust stock levels',
         'inventory.transfer' => 'Transfer stock between warehouses',

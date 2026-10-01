@@ -87,6 +87,19 @@ class TenancyContext
         return $this->company?->status?->allowsPmsAccess() ?? false;
     }
 
+    /**
+     * The active company, or null.
+     *
+     * A static shortcut used by factories, which build records outside the HTTP
+     * lifecycle where no middleware has populated the context yet.
+     */
+    public static function currentOrNull(): ?Company
+    {
+        $context = app(self::class);
+
+        return $context instanceof self ? $context->company() : null;
+    }
+
     public function resolver(): ?TenantResolver
     {
         return $this->resolver;

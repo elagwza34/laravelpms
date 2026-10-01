@@ -11,6 +11,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Permissions\PermissionCatalog;
+use App\Support\Tenancy\TenancyContext;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -156,5 +157,31 @@ trait InteractsWithTenants
         $this->app['auth']->forgetGuards();
 
         return $this->withToken($this->tokenFor($user));
+    }
+
+    /**
+     * Publish a tenant context outside the HTTP lifecycle.
+     *
+     * Factories and factories-of-products read the tenant from
+     * TenancyContext, so tests that build records directly (rather than through
+     * a request) have to establish the context first.
+     */
+    protected function withTenancyFor(Company $company): void
+    {
+        $membership = new CompanyMembership;
+        $membership->forceFill([
+            'company_id' => $company->id,
+            'status' => MembershipStatus::Active,
+        ]);
+
+        app(TenancyContext::class)->set($company, $membership);
+    }
+
+    /**
+     * Clear any tenant context so subsequent factories are unscoped.
+     */
+    protected function withoutTenancy(): void
+    {
+        app(TenancyContext::class)->forget();
     }
 }
