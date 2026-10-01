@@ -3,29 +3,28 @@
 namespace App\Providers;
 
 use App\Support\Tenancy\Contracts\TenantResolver;
+use App\Support\Tenancy\Resolvers\MembershipTenantResolver;
 use App\Support\Tenancy\TenancyContext;
 use Illuminate\Support\ServiceProvider;
 
 /**
  * Wires the multi-tenancy seam into the container.
  *
- * The TenancyContext is registered as a singleton so the tenant resolved by
- * ResolveTenant middleware is visible to every later part of the request.
- *
- * No concrete TenantResolver is bound on purpose: how a tenant is identified
- * (subdomain, header, token claim) is a business decision that has not been
- * made yet. Binding one later is a one-line change in register() — every other
- * layer already depends only on the contract.
+ * TenancyContext is registered as a SCOPED singleton, which gives exactly one
+ * instance per request or per queued job and resets it in between. That is what
+ * prevents a tenant resolved for one job from leaking into the next.
  */
 class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(MembershipTenantResolver::class);
+
         $this->app->scoped(TenancyContext::class, function ($app): TenancyContext {
-            // scoped(): one instance per request/job, reset by Laravel between
-            // requests, which prevents tenant leakage in queued workers.
             return new TenancyContext(
-                $app->bound(TenantResolver::class) ? $app->make(TenantResolver::class) : null
+                $app->bound(TenantResolver::class)
+                    ? $app->make(TenantResolver::class)
+                    : $app->make(MembershipTenantResolver::class)
             );
         });
 

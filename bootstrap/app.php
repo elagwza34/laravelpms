@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureSubscriptionIsActive;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Auth\AuthenticationException;
@@ -34,16 +36,18 @@ return Application::configure(basePath: dirname(__DIR__))
             | Request::HEADER_X_FORWARDED_AWS_ELB);
 
         /*
-         * API stack:
+         * API stack (global):
          *  1. CORS must run first so preflight OPTIONS requests never 401.
-         *  2. ResolveTenant publishes the active tenant before any auth or
-         *     authorization logic runs.
-         *  3. ForceJsonResponse guarantees JSON output for every API response.
-         *  4. Sanctum handles both SPA cookie auth and bearer tokens.
+         *  2. ForceJsonResponse guarantees JSON output for every API response.
+         *
+         * ResolveTenant is deliberately NOT prepended here. It needs an
+         * authenticated user to verify a membership, so it is applied per route
+         * group AFTER `auth:sanctum` (see routes/api.php). Putting it in this
+         * global stack would run it before authentication and it could never
+         * authorise anything.
          */
         $middleware->api(prepend: [
             HandleCors::class,
-            ResolveTenant::class,
             ForceJsonResponse::class,
         ]);
 
@@ -56,6 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => ResolveTenant::class,
             'force.json' => ForceJsonResponse::class,
+            'permission' => EnsurePermission::class,
+            'subscription.active' => EnsureSubscriptionIsActive::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => null);

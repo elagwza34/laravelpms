@@ -45,14 +45,19 @@ class AppServiceProvider extends ServiceProvider
         });
 
         /*
-         * Stricter limiter reserved for unauthenticated endpoints such as login.
-         * It is intentionally unused for now because the auth endpoints are not
-         * built yet; register it against those routes when they are added.
+         * Stricter limiter for unauthenticated endpoints such as login.
+         *
+         * The return type is left untyped on purpose: an array of limits lets a
+         * caller be throttled both per IP (stops one source brute-forcing many
+         * accounts) and per account (stops a botnet from spreading one guess
+         * across many IPs).
+         *
+         * @return Limit|array<int, Limit>
          */
-        RateLimiter::for('auth', function (Request $request): Limit {
+        RateLimiter::for('auth', function (Request $request): Limit|array {
             return [
-                Limit::perMinute(5)->by($request->ip()),
-                Limit::perMinute(20)->by((string) $request->user()?->getAuthIdentifier()),
+                Limit::perMinute(5)->by('ip|'.$request->ip()),
+                Limit::perMinute(20)->by('email|'.mb_strtolower((string) $request->input('email'))),
             ];
         });
     }

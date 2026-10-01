@@ -2,88 +2,89 @@
 
 namespace App\Support\Tenancy;
 
+use App\Models\Company;
+use App\Models\CompanyMembership;
 use App\Support\Tenancy\Contracts\TenantResolver;
 use Illuminate\Support\Traits\Macroable;
 
 /**
  * Holds the tenant that is active for the current request / process.
  *
- * The PMS will run multi-tenant. This class is the single place that carries
- * the active tenant identifier through the request lifecycle. It is bound as a
- * singleton in the service container, so middleware can populate it early and
- * repositories, policies and jobs can read it later.
+ * This is the single source of truth for "which company is this request acting
+ * on behalf of". It is bound as a scoped singleton and is always cleared once
+ * the response has been produced, so a tenant can never leak into the next
+ * request or the next queued job.
  *
- * IMPORTANT: at the foundation stage tenancy is disabled by default
- * (config('tenancy.enabled') === false) and no resolver is bound. When the
- * business rules for tenant resolution are defined, bind a TenantResolver in
- * a service provider and enable the feature flag. Nothing else has to change.
- *
- * @see TenantResolver
+ * The tenant is only ever populated from a membership the authenticated user
+ * actually holds — see MembershipTenantResolver. A slug arriving in the URL is
+ * used to *look up* a company, never to grant access to it.
  */
 class TenancyContext
 {
     use Macroable;
 
-    protected ?string $tenantId = null;
+    protected ?Company $company = null;
+
+    protected ?CompanyMembership $membership = null;
 
     public function __construct(protected ?TenantResolver $resolver = null) {}
 
     /**
-     * Store the active tenant for the remainder of the request.
+     * Activate the tenant together with the membership that authorised it.
      */
-    public function set(?string $tenantId): void
+    public function set(?Company $company, ?CompanyMembership $membership = null): void
     {
-        $this->tenantId = $tenantId;
+        $this->company = $company;
+        $this->membership = $membership;
     }
 
     /**
-     * Alias of set(), kept for readability inside middleware.
+     * The active company, or null when no tenant is active.
      */
-    public function identify(?string $tenantId): void
+    public function company(): ?Company
     {
-        $this->set($tenantId);
+        return $this->company;
     }
 
     /**
-     * The active tenant identifier, or null when not resolved / disabled.
+     * The membership that authorised this tenant context.
      */
-    public function id(): ?string
+    public function membership(): ?CompanyMembership
     {
-        if (! config('tenancy.enabled')) {
-            return null;
-        }
+        return $this->membership;
+    }
 
-        return $this->tenantId;
+    /**
+     * The active tenant identifier.
+     */
+    public function id(): ?int
+    {
+        return $this->company?->getKey();
     }
 
     public function has(): bool
     {
-        return $this->id() !== null;
+        return $this->company !== null;
     }
 
     /**
-     * Reset the context. Called at the start of every request so long-lived
-     * workers (Octane, queues) never leak a tenant between jobs.
+     * Reset the context. Called before and after every request so long-lived
+     * workers never leak a tenant between jobs.
      */
     public function forget(): void
     {
-        $this->tenantId = null;
+        $this->company = null;
+        $this->membership = null;
     }
 
     /**
-     * Whether tenancy is currently active for this application.
+     * Whether the active tenant may currently use the Product Management
+     * System. An expired or suspended company keeps all of its data but loses
+     * PMS access until its subscription is restored.
      */
-    public function enabled(): bool
+    public function allowsPmsAccess(): bool
     {
-        return (bool) config('tenancy.enabled');
-    }
-
-    /**
-     * The configured resolution strategy, exposed for diagnostics.
-     */
-    public function strategy(): string
-    {
-        return (string) config('tenancy.strategy', 'database');
+        return $this->company?->status?->allowsPmsAccess() ?? false;
     }
 
     public function resolver(): ?TenantResolver

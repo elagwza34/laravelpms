@@ -12,27 +12,21 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  * Centralises the validation contract so all endpoints fail in exactly the same
  * shape:
  *
- *   422 { "message": "...", "errors": { "field": ["..."] } }
+ *   422 { "message": "...", "error_code": "validation_failed", "errors": {...} }
  *
- * Authorisation is deliberately left unimplemented here. When the tenancy and
- * role model is defined, authorize() is where per-endpoint policies will be
- * enforced, keeping controllers thin.
+ * Authorisation is intentionally not decided here. Endpoint permissions are
+ * declared on the route via the `permission` middleware, and object-level checks
+ * belong in policies. Keeping the two concerns separate avoids the common bug
+ * where a request validates its input but forgets to check who is asking.
  */
 abstract class ApiFormRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        // Permissions are not defined yet. Returning true keeps validation
-        // active and reachable while auth rules are still being decided.
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, mixed>
      */
     abstract public function rules(): array;
@@ -58,8 +52,7 @@ abstract class ApiFormRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Intentionally empty. Subclasses normalise their own input
-        // (trimming, lowercasing, etc.) so behaviour stays predictable.
+        // Subclasses normalise their own input.
     }
 
     protected function failedValidation(Validator $validator): void

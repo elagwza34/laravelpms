@@ -2,25 +2,23 @@
 
 namespace App\Support\Tenancy\Contracts;
 
-use App\Support\Tenancy\TenancyContext;
+use App\Support\Tenancy\Resolvers\MembershipTenantResolver;
 use Illuminate\Http\Request;
 
 /**
- * Resolves the tenant that owns the current request.
+ * Resolves the company slug a request is attempting to act on behalf of.
  *
- * This contract exists so the rest of the application depends on an
- * abstraction rather than a concrete resolution strategy. The concrete
- * implementation (subdomain, custom header, token claim, ...) is a business
- * decision and is deliberately not made yet.
+ * Implementations must treat the value they read from the request as an
+ * untrusted lookup hint only. Returning a slug merely means "this caller is
+ * asking about that company"; the caller is still responsible for proving an
+ * authenticated membership before a tenant context is created.
  *
- * @see TenancyContext
+ * @see MembershipTenantResolver
  */
 interface TenantResolver
 {
     /**
-     * Resolve the tenant identifier for the given request.
-     *
-     * Returning null means the request could not be attributed to a tenant.
+     * The slug the request asked for, or null when it did not ask for one.
      */
     public function resolve(Request $request): ?string;
 }

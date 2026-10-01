@@ -1,58 +1,64 @@
 <?php
 
+use App\Models\Concerns\CompanyScope;
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Multi-Tenancy (architecture only)
+    | Multi-Tenancy
     |--------------------------------------------------------------------------
     |
-    | The PMS will be multi-tenant. This configuration file only establishes the
-    | architectural seam so tenancy can be implemented later without reworking
-    | the codebase. No tenant business logic is executed at this stage.
+    | The PMS is a multi-tenant SaaS. Phase 1 activates row-level isolation:
+    | every tenant-owned table carries a company_id and reads are filtered by
+    | a global scope tied to the authenticated membership.
     |
-    | Supported strategies (for later use):
+    | Strategies (for possible later use):
     |   - "database" : one shared database, row-level scoping (default)
     |   - "schema"   : one database, one schema per tenant
     |   - "db"       : one database per tenant
     |
     */
 
-    'enabled' => (bool) env('PMS_TENANCY_ENABLED', false),
+    'enabled' => (bool) env('PMS_TENANCY_ENABLED', true),
 
     'strategy' => env('PMS_TENANCY_STRATEGY', 'database'),
 
     /*
-    | Connection that owns the central tables (tenants, tenant_user, ...).
-    | These tables must never be tenant-scoped.
+    | Connection that owns central tables (companies, permissions, roles).
+    | These must never be tenant-scoped.
     */
     'central_connection' => env('PMS_TENANCY_CONNECTION_CENTRAL', 'central'),
 
     /*
-    | Fully qualified model of the central Tenant registry.
-    | Declared as a string so the class does not have to exist yet.
+    | Model of the tenant registry. The anchor for all tenant-owned records.
     */
-    'tenant_model' => 'App\\Models\\Tenant',
+    'tenant_model' => 'App\\Models\\Company',
 
     /*
-    | Column added to every tenant-owned table for row-level scoping.
+    | Foreign key added to every tenant-owned table for row-level scoping.
     */
-    'column' => 'tenant_id',
+    'column' => 'company_id',
 
     /*
-    | Guards that may act across tenant boundaries (e.g. central support staff).
-    | Empty until the authorization rules are defined.
+    | Route/header used to *look up* a tenant. Never a security boundary: access
+    | is granted only after an authenticated active membership is proven.
     */
-    'bypass_guards' => [],
+    'header' => 'X-Company-Slug',
 
     /*
-    | Routes that must stay reachable while tenancy is being resolved.
+    | Routes reachable without a tenant context (platform-level endpoints).
     */
     'central_routes' => [
         'api/health',
         'api/v1/health',
-        'sanctum/csrf-cookie',
+        'api/v1/auth/login',
         'up',
     ],
+
+    /*
+    | Global scope applied by the BelongsToCompany trait.
+    */
+    'scope' => CompanyScope::class,
 
 ];
